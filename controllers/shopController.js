@@ -2,13 +2,13 @@ const { Shops, Products, Users } = require("../models");
 const { Op, where } = require("sequelize");
 
 const createShop = async (req, res) => {
-  const { name, adminEmail, userId } = req.body;
+  const { name, adminEmail } = req.body;
 
   try {
     const newShop = await Shops.create({
       name,
       adminEmail,
-      userId,
+      userId: req.user.id,
     });
 
     res.status(201).json({
@@ -50,7 +50,8 @@ const createShop = async (req, res) => {
 const getAllShop = async (req, res) => {
   try {
     // kita jaga request query nya biar gak kemana2
-    const { shopName, adminEmail, productName, stock } = req.query;
+    const { shopName, adminEmail, productName, stock, size, page, userName } =
+      req.query;
 
     const condition = {};
     if (shopName) condition.name = { [Op.iLike]: `%${shopName}%` };
@@ -58,6 +59,29 @@ const getAllShop = async (req, res) => {
     const productCondition = {};
     if (productName) productCondition.name = { [Op.iLike]: `%${productName}%` };
     if (stock) productCondition.stock = stock;
+
+    const userCondition = {};
+    if (userName) userCondition.name = { [Op.iLike]: `%${userName}%` };
+
+    const pageSize = parseInt(size) || 10;
+    const pageNum = parseInt(page) || 1;
+    const offset = (pageNum - 1) * pageSize;
+
+    const totalCount = await Shops.count({
+      include: [
+        {
+          model: Products,
+          as: "products",
+          where: productCondition,
+        },
+        {
+          model: Users,
+          as: "user",
+          where: userCondition,
+        },
+      ],
+      where: condition,
+    });
 
     const shops = await Shops.findAll({
       include: [
@@ -71,21 +95,29 @@ const getAllShop = async (req, res) => {
           model: Users,
           as: "user",
           attributes: ["name"],
+          where: userCondition,
         },
       ],
       attributes: ["name", "adminEmail"],
       where: condition,
+      limit: pageSize,
+      offset,
     });
 
-    const totalData = shops.length;
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     res.status(200).json({
       status: "Success",
       message: "Success get shops data",
       isSuccess: true,
       data: {
-        totalData,
+        totalData: totalCount,
         shops,
+        pagination: {
+          page: pageNum,
+          size: pageSize,
+          totalPages,
+        },
       },
     });
   } catch (error) {
