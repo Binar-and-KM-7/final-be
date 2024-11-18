@@ -68,15 +68,19 @@ const getAllShop = async (req, res) => {
     const offset = (pageNum - 1) * pageSize;
 
     const totalCount = await Shops.count({
+      distinct: true,
+      col: "id",
       include: [
         {
           model: Products,
           as: "products",
+          required: !!Object.keys(productCondition).length,
           where: productCondition,
         },
         {
           model: Users,
           as: "user",
+          required: !!Object.keys(userCondition).length,
           where: userCondition,
         },
       ],
@@ -89,18 +93,21 @@ const getAllShop = async (req, res) => {
           model: Products,
           as: "products",
           attributes: ["name", "images", "stock", "price"],
+          required: !!Object.keys(productCondition).length,
           where: productCondition,
         },
         {
           model: Users,
           as: "user",
           attributes: ["name"],
+          required: !!Object.keys(userCondition).length,
           where: userCondition,
         },
       ],
-      attributes: ["name", "adminEmail"],
+      attributes: ["id", "name", "adminEmail"],
       where: condition,
       limit: pageSize,
+      order: [["id", "DESC"]],
       offset,
     });
 
